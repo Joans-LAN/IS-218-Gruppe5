@@ -47,3 +47,55 @@ body {
 #layer-list input {
   margin-right: 6px;
 }
+
+#layer-panel hr {
+  border: none;
+  border-top: 1px solid #cfd8dc;
+  margin: 10px 0;
+}
+
+#count-selected-zone-btn {
+  width: 100%;
+  border: 1px solid #455a64;
+  background: #102027;
+  color: #ffffff;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+#count-selected-zone-btn:hover {
+  background: #1d3b45;
+}
+
+#selected-zone-status {
+  margin: 8px 0 8px;
+  font-size: 13px;
+  color: #0d1b2a;
+  line-height: 1.4;
+}
+
+#analysis-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #0d1b2a;
+  line-height: 1.4;
+}
+
+.maplibregl-popup-content {
+  background: #ffffff;
+  color: #111111;
+  font-family: Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.maplibregl-popup-content strong {
+  color: #0b1f33;
+}
+
+.maplibregl-popup-close-button {
+  color: #111111;
+}

@@ -15,9 +15,17 @@
     <aside id="layer-panel">
       <h3>Layer Controls</h3>
       <div id="layer-list"></div>
+      <hr />
+      <h3>WFS Analysis</h3>
+      <p id="selected-zone-status">Selected zone: none</p>
+      <button id="count-selected-zone-btn" type="button">
+        Count Houses In Selected Zone
+      </button>
+      <p id="analysis-status">Not run yet.</p>
     </aside>
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
     <script src="mpa.js"></script>
   </body>
 </html>
