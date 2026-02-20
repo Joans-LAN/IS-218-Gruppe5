@@ -209,3 +209,6 @@ __marimo__/
 
 
 Samfunnssikkerhet_42_Agder_25833_Flomsoner_FGDB.gdb
+data_in
+fgdb_to_geojson_all.sh
+flomdata/manifest.json
