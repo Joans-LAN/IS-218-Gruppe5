@@ -25,7 +25,7 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 press view raw after clicking the link to download and view the video.
 
 # Refleksjon
--Parsing av XML/GML fra WFS-spørringen i nettleseren er praktisk, men en backend-løsning (proxy) ville vært bedre for ytelse og stabilitet.
--Kan legge til funksjonalitet for å sjekke flere områder samtidig.
--Punkt-i-polygon i nettleseren fungerer bra for moderate datamengder, men kan bli tregt ved svært store WFS-kall.
--Kan forbedre brukervennligheten.
+- Parsing av XML/GML fra WFS-spørringen i nettleseren er praktisk, men en backend-løsning (proxy) ville vært bedre for ytelse og stabilitet.
+- Kan legge til funksjonalitet for å sjekke flere områder samtidig.
+- Punkt-i-polygon i nettleseren fungerer bra for moderate datamengder, men kan bli tregt ved svært store WFS-kall.
+- Kan forbedre brukervennligheten.
