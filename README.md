@@ -19,10 +19,10 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 - HTML5 / CSS3 / JavaScript (ES6)
 - GDAL/OGR (for dataforbehandling: FGDB -> GeoJSON)
 
-![Arkitektur](assets/ar.png)
+![Arkitektur](assets/arkitektur.png)
 
 [Demo video](./assets/demo_video.webm)
-press view raw after clicking the link to download and view the video.
+- Trykk view raw for å laste ned videoen.
 
 # Refleksjon
 - Parsing av XML/GML fra WFS-spørringen i nettleseren er praktisk, men en backend-løsning (proxy) ville vært bedre for ytelse og stabilitet.
