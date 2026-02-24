@@ -18,4 +18,6 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 - Geospatial analyse i nettleser: Turf.js (point-in-polygon)
 - Koordinatsystem-konvertering: Proj4js (EPSG:25833 til EPSG:4326)
 
-![Arkitektur](ar.png)
+![Arkitektur](assets/ar.png)
+
+[Demo video](assets/demo.mp4)
