@@ -20,4 +20,4 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 
 ![Arkitektur](assets/ar.png)
 
-[Demo video](assets/demo.webm)
+[Demo video](assets/demo_video.webm)
