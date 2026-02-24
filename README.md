@@ -13,11 +13,19 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 | Flomsoner (Agder) | GeoNorge nedlastingstjeneste | FGDB (nedlastet), deretter GeoJSON | Lastet ned som FGDB, konvertert/reprojisert til GeoJSON (EPSG:4326) for visning og analyse i MapLibre |
 
 # Teknisk stack
-- Frontend: HTML, CSS, JavaScript
-- Kartbibliotek: MapLibre GL JS
-- Geospatial analyse i nettleser: Turf.js (point-in-polygon)
-- Koordinatsystem-konvertering: Proj4js (EPSG:25833 til EPSG:4326)
+- MapLibre GL JS `4.7.1`
+- Proj4js `2.11.0`
+- Turf.js `6.5.0`
+- HTML5 / CSS3 / JavaScript (ES6)
+- GDAL/OGR (for dataforbehandling: FGDB -> GeoJSON)
 
 ![Arkitektur](assets/ar.png)
 
 [Demo video](./assets/demo_video.webm)
+press view raw after clicking the link to download and view the video.
+
+# Refleksjon
+-Parsing av XML/GML fra WFS-spørringen i nettleseren er praktisk, men en backend-løsning (proxy) ville vært bedre for ytelse og stabilitet.
+-Kan legge til funksjonalitet for å sjekke flere områder samtidig.
+-Punkt-i-polygon i nettleseren fungerer bra for moderate datamengder, men kan bli tregt ved svært store WFS-kall.
+-Kan forbedre brukervennligheten.
