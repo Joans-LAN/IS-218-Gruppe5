@@ -1,0 +1,8 @@
+# Runtime (loaded via CDN in browser)
+maplibre-gl
+proj4
+@turf/turf
+
+# Local runtime
+python3
+
