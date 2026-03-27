@@ -16,6 +16,13 @@
       <h3>Layer Controls</h3>
       <div id="layer-list"></div>
       <hr />
+      <h3>Supabase Proximity</h3>
+      <label id="supabase-radius-label" for="supabase-radius-input">
+        Radius (meters):
+      </label>
+      <input id="supabase-radius-input" type="number" min="50" max="5000" step="50" value="250" />
+      <p id="supabase-status">Click the map to query nearby buildings.</p>
+      <hr />
       <h3>WFS Analysis</h3>
       <p id="selected-zone-status">Selected zone: none</p>
       <button id="count-selected-zone-btn" type="button">
@@ -24,6 +31,7 @@
       <p id="analysis-status">Not run yet.</p>
     </aside>
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/proj4@2.11.0/dist/proj4.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6.5.0/turf.min.js"></script>
     <script src="mpa.js"></script>

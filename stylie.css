@@ -84,6 +84,29 @@ body {
   line-height: 1.4;
 }
 
+#supabase-radius-label {
+  display: block;
+  margin: 4px 0 4px;
+  font-size: 13px;
+  color: #0d1b2a;
+}
+
+#supabase-radius-input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #90a4ae;
+  border-radius: 6px;
+  padding: 7px 8px;
+  font-size: 13px;
+}
+
+#supabase-status {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #0d1b2a;
+  line-height: 1.4;
+}
+
 .maplibregl-popup-content {
   background: #ffffff;
   color: #111111;

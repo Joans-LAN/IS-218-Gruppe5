@@ -36,6 +36,8 @@ const layerListElement = document.getElementById("layer-list");
 const countSelectedZoneBtn = document.getElementById("count-selected-zone-btn");
 const selectedZoneStatusElement = document.getElementById("selected-zone-status");
 const analysisStatusElement = document.getElementById("analysis-status");
+const supabaseStatusElement = document.getElementById("supabase-status");
+const supabaseRadiusInputElement = document.getElementById("supabase-radius-input");
 
 let loadedBuildingsFeatureCollection = null;
 let selectedFloodZoneFeature = null;
@@ -43,6 +45,17 @@ let selectedFloodZoneFeature = null;
 const WFS_BASE_URL = "https://wfs.geonorge.no/skwms1/wfs.matrikkelen-bygningspunkt";
 const WFS_TYPENAME = "app:Bygning";
 const WFS_PAGE_SIZE = 2000;
+
+// Replace these with your own values from Supabase -> Settings -> API Keys.
+const SUPABASE_URL = "https://etwjzsfimhczozbjfncg.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_wtoX_TYqqdHPntTeTnBW8A_3h7urgb-";
+const supabaseClient =
+  typeof window.supabase !== "undefined" &&
+  SUPABASE_URL.startsWith("https://") &&
+  SUPABASE_ANON_KEY &&
+  !SUPABASE_ANON_KEY.startsWith("REPLACE_WITH_")
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
 
 proj4.defs(
   "EPSG:25833",
@@ -59,6 +72,20 @@ function setSelectedZoneStatus(message) {
   if (selectedZoneStatusElement) {
     selectedZoneStatusElement.textContent = message;
   }
+}
+
+function setSupabaseStatus(message) {
+  if (supabaseStatusElement) {
+    supabaseStatusElement.textContent = message;
+  }
+}
+
+function getSupabaseRadiusMeters() {
+  const parsed = Number.parseInt(supabaseRadiusInputElement?.value || "250", 10);
+  if (!Number.isFinite(parsed)) {
+    return 250;
+  }
+  return Math.max(50, Math.min(5000, parsed));
 }
 
 function reprojectCoordinates(coords) {
@@ -552,6 +579,204 @@ async function countLoadedBuildingsInSelectedZone() {
   }
 }
 
+function ensureSupabaseResultOverlays() {
+  if (!map.getSource("supabase-click-point")) {
+    map.addSource("supabase-click-point", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: "supabase-click-point-circle",
+      type: "circle",
+      source: "supabase-click-point",
+      paint: {
+        "circle-radius": 7,
+        "circle-color": "#ef4444",
+        "circle-stroke-color": "#ffffff",
+        "circle-stroke-width": 1.8,
+      },
+    });
+  }
+
+  if (!map.getSource("supabase-click-radius")) {
+    map.addSource("supabase-click-radius", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: "supabase-click-radius-fill",
+      type: "fill",
+      source: "supabase-click-radius",
+      paint: {
+        "fill-color": "#ef4444",
+        "fill-opacity": 0.08,
+      },
+    });
+    map.addLayer({
+      id: "supabase-click-radius-outline",
+      type: "line",
+      source: "supabase-click-radius",
+      paint: {
+        "line-color": "#b91c1c",
+        "line-width": 2,
+      },
+    });
+  }
+
+  if (!map.getSource("supabase-nearby-buildings")) {
+    map.addSource("supabase-nearby-buildings", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+    map.addLayer({
+      id: "supabase-nearby-buildings-circle",
+      type: "circle",
+      source: "supabase-nearby-buildings",
+      paint: {
+        "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 3, 13, 6],
+        "circle-color": "#f59e0b",
+        "circle-stroke-color": "#111827",
+        "circle-stroke-width": 1,
+        "circle-opacity": 0.95,
+      },
+    });
+
+    map.on("click", "supabase-nearby-buildings-circle", (event) => {
+      const feature = event.features?.[0];
+      if (!feature) {
+        return;
+      }
+      const properties = feature.properties || {};
+      new maplibregl.Popup()
+        .setLngLat(event.lngLat)
+        .setHTML(
+          popupHtmlFromProperties(
+            {
+              bygningid: properties.bygningid,
+              bygningstype: properties.bygningstype,
+              objtype: properties.objtype,
+              distance_m: properties.distance_m,
+            },
+            "Supabase nearby building"
+          )
+        )
+        .addTo(map);
+    });
+
+    map.on("mouseenter", "supabase-nearby-buildings-circle", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "supabase-nearby-buildings-circle", () => {
+      map.getCanvas().style.cursor = "";
+    });
+  }
+}
+
+function setSupabaseClickAndRadius(lng, lat, radiusMeters) {
+  ensureSupabaseResultOverlays();
+  map.getSource("supabase-click-point").setData({
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [lng, lat] },
+        properties: {},
+      },
+    ],
+  });
+
+  const radiusFeature = turf.circle([lng, lat], radiusMeters / 1000, {
+    steps: 64,
+    units: "kilometers",
+  });
+  map.getSource("supabase-click-radius").setData({
+    type: "FeatureCollection",
+    features: [radiusFeature],
+  });
+}
+
+function setSupabaseResultFeatures(rows) {
+  ensureSupabaseResultOverlays();
+  const rawCount = (rows || []).length;
+  let invalidCoordCount = 0;
+  const features = (rows || [])
+    .map((row) => {
+      const lon = Number(row.lon);
+      const lat = Number(row.lat);
+      if (!Number.isFinite(lon) || !Number.isFinite(lat)) {
+        invalidCoordCount += 1;
+        return null;
+      }
+      return {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [lon, lat],
+        },
+        properties: {
+          bygningid: row.bygningid ?? "",
+          bygningstype: row.bygningstype ?? "",
+          objtype: row.objtype ?? "",
+          distance_m: row.distance_m !== null ? Number(row.distance_m).toFixed(1) : "",
+        },
+      };
+    })
+    .filter(Boolean);
+  map.getSource("supabase-nearby-buildings").setData({
+    type: "FeatureCollection",
+    features,
+  });
+  return { features, rawCount, invalidCoordCount };
+}
+
+async function runSupabaseNearbySearch(lng, lat) {
+  const radiusMeters = getSupabaseRadiusMeters();
+  setSupabaseClickAndRadius(lng, lat, radiusMeters);
+
+  if (!supabaseClient) {
+    setSupabaseStatus(
+      "Supabase not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY in mpa.js first."
+    );
+    setSupabaseResultFeatures([]);
+    return;
+  }
+
+  setSupabaseStatus(
+    `Querying buildings within ${radiusMeters} m at ${lng.toFixed(5)}, ${lat.toFixed(5)}...`
+  );
+  const { data, error } = await supabaseClient.rpc("buildings_within_distance", {
+    clicked_lng: lng,
+    clicked_lat: lat,
+    radius_m: radiusMeters,
+  });
+
+  if (error) {
+    console.error(error);
+    setSupabaseResultFeatures([]);
+    setSupabaseStatus(`Supabase query failed: ${error.message}`);
+    return;
+  }
+
+  const { features, rawCount, invalidCoordCount } = setSupabaseResultFeatures(data || []);
+  if (features.length > 0) {
+    const bounds = new maplibregl.LngLatBounds();
+    for (const feature of features) {
+      bounds.extend(feature.geometry.coordinates);
+    }
+    if (!bounds.isEmpty()) {
+      map.fitBounds(bounds, { padding: 40, maxZoom: 15, duration: 500 });
+    }
+    const first = features[0].geometry.coordinates;
+    setSupabaseStatus(
+      `Found ${features.length} buildings within ${radiusMeters} m at ${lng.toFixed(5)}, ${lat.toFixed(5)} (raw ${rawCount}, invalid ${invalidCoordCount}). First point: ${first[0].toFixed(5)}, ${first[1].toFixed(5)}.`
+    );
+  } else {
+    setSupabaseStatus(
+      `Found 0 plottable buildings within ${radiusMeters} m at ${lng.toFixed(5)}, ${lat.toFixed(5)} (raw ${rawCount}, invalid ${invalidCoordCount}).`
+    );
+  }
+}
+
 map.on("load", async () => {
   let hasFitBounds = false;
 
@@ -594,6 +819,18 @@ map.on("load", async () => {
     });
   }
 
+  ensureSupabaseResultOverlays();
+  map.on("click", async (event) => {
+    await runSupabaseNearbySearch(event.lngLat.lng, event.lngLat.lat);
+  });
+
   setSelectedZoneStatus("Selected zone: none");
   setStatus("Ready. Turn on a flood layer, click a zone, then run the zone count.");
+  if (supabaseClient) {
+    setSupabaseStatus("Ready. Click the map to query buildings nearby.");
+  } else {
+    setSupabaseStatus(
+      "Supabase not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in mpa.js."
+    );
+  }
 });
