@@ -79,3 +79,6 @@ as $$
   order by distance_m asc;
 $$;
 ```
+
+## Link til notebook
+[Åpne notebook (Oppgave 2)](./2a/is218a.ipynb)
