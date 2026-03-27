@@ -21,8 +21,8 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 
 ![Arkitektur](assets/arkitektur.png)
 
-[Demo video](./assets/demo_video.webm)
-- Trykk view raw for å laste ned videoen.
+![Demo gif](./assets/demo_video.gif)
+
 
 # Refleksjon
 - Parsing av XML/GML fra WFS-spørringen i nettleseren er praktisk, men en backend-løsning (proxy) ville vært bedre for ytelse og stabilitet.
