@@ -29,3 +29,54 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 - Kan legge til funksjonalitet for å sjekke flere områder samtidig.
 - Punkt-i-polygon i nettleseren fungerer bra for moderate datamengder, men kan bli tregt ved svært store WFS-kall.
 - Kan forbedre brukervennligheten.
+
+# Oppgave 2
+## Beskrivelse av utvidelsen
+Webkartet er utvidet med en dynamisk romlig analyse mot Supabase/PostGIS:
+- Brukeren klikker i kartet, og applikasjonen sender klikk-koordinater (`lng`, `lat`) og valgt radius (meter) til en SQL-funksjon i Supabase.
+- SQL-funksjonen bruker `ST_DWithin` for aa finne bygninger innenfor valgt avstand fra klikkpunktet.
+- Resultatet returneres som punkter med avstand (`ST_Distance`) og visualiseres direkte i kartet.
+- Grensesnittet gir visuell feedback med:
+  - markor i klikkpunktet
+  - radiussirkel
+  - uthevede treffpunkter
+  - statusmelding med antall funn
+## Demo av system
+- Video/GIF av Oppgave 2-flyten (klikk -> SQL -> visualisering):
+[Demo gif](./assets/is218_b.gif)
+
+## SQL-snippet (Supabase/PostGIS)
+```sql
+create or replace function buildings_within_distance(
+  clicked_lng double precision,
+  clicked_lat double precision,
+  radius_m integer default 250
+)
+returns table (
+  bygningid bigint,
+  bygningstype bigint,
+  objtype text,
+  lon double precision,
+  lat double precision,
+  distance_m double precision
+)
+language sql
+stable
+as $$
+  with clicked as (
+    select ST_SetSRID(ST_MakePoint(clicked_lng, clicked_lat), 4326)::geography as g
+  )
+  select
+    b.bygningid,
+    b.bygningstype,
+    b.objtype,
+    ST_X(b.geom::geometry) as lon,
+    ST_Y(b.geom::geometry) as lat,
+    ST_Distance(b.geom, c.g) as distance_m
+  from public.actuall_buildings b
+  cross join clicked c
+  where b.geom is not null
+    and ST_DWithin(b.geom, c.g, radius_m)
+  order by distance_m asc;
+$$;
+```
