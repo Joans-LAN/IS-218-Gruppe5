@@ -34,10 +34,10 @@ Raskt identifisere hvor flomsoner befinner seg og gjennomføre en analyse av hvo
 ## Beskrivelse av utvidelsen
 Webkartet er utvidet med en dynamisk romlig analyse mot Supabase/PostGIS:
 - Brukeren klikker i kartet, og applikasjonen sender klikk-koordinater (`lng`, `lat`) og valgt radius (meter) til en SQL-funksjon i Supabase.
-- SQL-funksjonen bruker `ST_DWithin` for aa finne bygninger innenfor valgt avstand fra klikkpunktet.
+- SQL-funksjonen bruker `ST_DWithin` for å finne bygninger innenfor valgt avstand fra klikkpunktet.
 - Resultatet returneres som punkter med avstand (`ST_Distance`) og visualiseres direkte i kartet.
 - Grensesnittet gir visuell feedback med:
-  - markor i klikkpunktet
+  - markør i klikkpunktet
   - radiussirkel
   - uthevede treffpunkter
   - statusmelding med antall funn
