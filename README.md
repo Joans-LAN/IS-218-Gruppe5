@@ -41,6 +41,8 @@ Webkartet er utvidet med en dynamisk romlig analyse mot Supabase/PostGIS:
   - radiussirkel
   - uthevede treffpunkter
   - statusmelding med antall funn
+
+
 ## Demo av system
 Demo av Oppgave 2-flyten (klikk -> SQL -> visualisering):
 ![Demo gif](./assets/is218_b.gif)
@@ -79,6 +81,7 @@ as $$
   order by distance_m asc;
 $$;
 ```
+
 
 ## Link til notebook
 [Åpne notebook (Oppgave 2)](./2a/is218a.ipynb)
