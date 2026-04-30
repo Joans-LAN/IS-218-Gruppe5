@@ -32,6 +32,13 @@ const flomFiles = [
   "Samfunnssikkerhet_42_Agder_25833_Flomsoner_FGDB__flomsoner_tverrprofillinje.geojson",
 ];
 
+const firestationFiles = [
+  "firestationdata/brannstasjoner.geojson",
+  "firestationdata/firestations.geojson",
+  "brannstasjoner.geojson",
+  "firestations.geojson",
+];
+
 const layerListElement = document.getElementById("layer-list");
 const countSelectedZoneBtn = document.getElementById("count-selected-zone-btn");
 const selectedZoneStatusElement = document.getElementById("selected-zone-status");
@@ -41,6 +48,7 @@ const supabaseRadiusInputElement = document.getElementById("supabase-radius-inpu
 
 let loadedBuildingsFeatureCollection = null;
 let selectedFloodZoneFeature = null;
+const floodAreaFeatureCollection = { type: "FeatureCollection", features: [] };
 
 const WFS_BASE_URL = "https://wfs.geonorge.no/skwms1/wfs.matrikkelen-bygningspunkt";
 const WFS_TYPENAME = "app:Bygning";
@@ -103,6 +111,39 @@ function reprojectFeatureCollection(featureCollection) {
     if (feature.geometry?.coordinates) {
       feature.geometry.coordinates = reprojectCoordinates(feature.geometry.coordinates);
     }
+  }
+}
+
+function findFirstPosition(coords) {
+  if (!Array.isArray(coords)) {
+    return null;
+  }
+  if (coords.length >= 2 && typeof coords[0] === "number" && typeof coords[1] === "number") {
+    return coords;
+  }
+  for (const item of coords) {
+    const position = findFirstPosition(item);
+    if (position) {
+      return position;
+    }
+  }
+  return null;
+}
+
+function reprojectFeatureCollectionIfProjected(featureCollection) {
+  const featureWithCoordinates = (featureCollection.features || []).find(
+    (feature) => feature.geometry?.coordinates
+  );
+  const position = featureWithCoordinates
+    ? findFirstPosition(featureWithCoordinates.geometry.coordinates)
+    : null;
+  if (!position) {
+    return;
+  }
+
+  const [x, y] = position;
+  if (Math.abs(x) > 180 || Math.abs(y) > 90) {
+    reprojectFeatureCollection(featureCollection);
   }
 }
 
@@ -192,6 +233,34 @@ function getFloodZoneLabelFromProperties(properties) {
     properties?.lokalid ||
     "selected flood zone"
   );
+}
+
+function getFirestationLabelFromProperties(properties) {
+  return (
+    properties?.navn ||
+    properties?.Navn ||
+    properties?.name ||
+    properties?.Name ||
+    properties?.brannstasjon ||
+    properties?.Brannstasjon ||
+    properties?.stasjonsnavn ||
+    properties?.Stasjonsnavn ||
+    properties?.organisasjonsnavn ||
+    "Fire station"
+  );
+}
+
+function getPointCoordinates(feature) {
+  if (!feature?.geometry) {
+    return null;
+  }
+  if (feature.geometry.type === "Point") {
+    return feature.geometry.coordinates;
+  }
+  if (feature.geometry.type === "MultiPoint") {
+    return feature.geometry.coordinates?.[0] || null;
+  }
+  return null;
 }
 
 function ensureSelectedZoneOverlay() {
@@ -531,6 +600,18 @@ function countPointsInsideFloodPolygons(pointsFeatureCollection, polygonsFeature
   return insideCount;
 }
 
+function addFloodAreaFeatures(fileName, featureCollection) {
+  if (!fileName.endsWith("__flomsoner_flomareal.geojson")) {
+    return;
+  }
+
+  const polygonFeatures = (featureCollection.features || []).filter((feature) => {
+    const geometryType = feature.geometry?.type;
+    return geometryType === "Polygon" || geometryType === "MultiPolygon";
+  });
+  floodAreaFeatureCollection.features.push(...polygonFeatures);
+}
+
 async function countLoadedBuildingsInSelectedZone() {
   if (!selectedFloodZoneFeature) {
     setStatus("Select a flood zone first (turn on a flood layer, then click a polygon).");
@@ -777,6 +858,131 @@ async function runSupabaseNearbySearch(lng, lat) {
   }
 }
 
+function firestationPopupHtml(feature, radiusMeters, nearbyCount, floodCount) {
+  const properties = feature.properties || {};
+  const stationName = getFirestationLabelFromProperties(properties);
+  return `
+    <strong>${stationName}</strong>
+    <div><strong>Houses within ${radiusMeters} m:</strong> ${nearbyCount}</div>
+    <div><strong>Houses inside flood zone:</strong> ${floodCount}</div>
+    <hr/>
+    ${popupHtmlFromProperties(properties, "Fire station data")}
+  `;
+}
+
+async function runFirestationAnalysis(feature, lngLat) {
+  const coordinates = getPointCoordinates(feature) || [lngLat.lng, lngLat.lat];
+  const [lng, lat] = coordinates;
+  const radiusMeters = getSupabaseRadiusMeters();
+  const stationName = getFirestationLabelFromProperties(feature.properties || {});
+
+  setSupabaseClickAndRadius(lng, lat, radiusMeters);
+
+  const popup = new maplibregl.Popup()
+    .setLngLat(coordinates)
+    .setHTML(
+      `<strong>${stationName}</strong><div>Querying houses within ${radiusMeters} m...</div>`
+    )
+    .addTo(map);
+
+  if (!supabaseClient) {
+    setSupabaseResultFeatures([]);
+    setSupabaseStatus(
+      "Supabase not configured. Add SUPABASE_URL and SUPABASE_ANON_KEY in mpa.js first."
+    );
+    popup.setHTML(
+      `<strong>${stationName}</strong><div>Supabase is not configured, so nearby houses cannot be counted.</div>`
+    );
+    return;
+  }
+
+  setSupabaseStatus(`Querying houses within ${radiusMeters} m of "${stationName}"...`);
+  const { data, error } = await supabaseClient.rpc("buildings_within_distance", {
+    clicked_lng: lng,
+    clicked_lat: lat,
+    radius_m: radiusMeters,
+  });
+
+  if (error) {
+    console.error(error);
+    setSupabaseResultFeatures([]);
+    setSupabaseStatus(`Fire station query failed: ${error.message}`);
+    popup.setHTML(`<strong>${stationName}</strong><div>Query failed: ${error.message}</div>`);
+    return;
+  }
+
+  const { features, rawCount, invalidCoordCount } = setSupabaseResultFeatures(data || []);
+  const nearbyBuildings = { type: "FeatureCollection", features };
+  const floodCount = countPointsInsideFloodPolygons(
+    nearbyBuildings,
+    floodAreaFeatureCollection
+  );
+
+  setSupabaseStatus(
+    `"${stationName}": ${features.length} houses within ${radiusMeters} m, ${floodCount} inside a flood zone (raw ${rawCount}, invalid ${invalidCoordCount}).`
+  );
+  popup.setHTML(firestationPopupHtml(feature, radiusMeters, features.length, floodCount));
+}
+
+function addFirestationLayer(featureCollection, label) {
+  const sourceId = "firestations";
+  const layerId = "firestations-circle";
+  if (map.getSource(sourceId)) {
+    map.getSource(sourceId).setData(featureCollection);
+    return [layerId];
+  }
+
+  map.addSource(sourceId, { type: "geojson", data: featureCollection });
+  map.addLayer({
+    id: layerId,
+    type: "circle",
+    source: sourceId,
+    paint: {
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 9, 5, 13, 9],
+      "circle-color": "#dc2626",
+      "circle-stroke-color": "#ffffff",
+      "circle-stroke-width": 2,
+    },
+  });
+
+  map.on("click", layerId, async (event) => {
+    const feature = event.features?.[0];
+    if (!feature) {
+      return;
+    }
+    await runFirestationAnalysis(feature, event.lngLat);
+  });
+
+  map.on("mouseenter", layerId, () => {
+    map.getCanvas().style.cursor = "pointer";
+  });
+  map.on("mouseleave", layerId, () => {
+    map.getCanvas().style.cursor = "";
+  });
+
+  addLayerToggle(label, [layerId], true);
+  return [layerId];
+}
+
+async function loadFirestations() {
+  for (const fileName of firestationFiles) {
+    try {
+      const response = await fetch(fileName);
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+      reprojectFeatureCollectionIfProjected(data);
+      addFirestationLayer(data, "Fire stations");
+      return true;
+    } catch (error) {
+      console.error(`Failed to load ${fileName}:`, error);
+    }
+  }
+  return false;
+}
+
 map.on("load", async () => {
   let hasFitBounds = false;
 
@@ -792,6 +998,7 @@ map.on("load", async () => {
 
       const data = await response.json();
       reprojectFeatureCollection(data);
+      addFloodAreaFeatures(fileName, data);
 
       map.addSource(sourceId, { type: "geojson", data });
       const geometryTypes = new Set(
@@ -813,6 +1020,8 @@ map.on("load", async () => {
     }
   }
 
+  const hasFirestations = await loadFirestations();
+
   if (countSelectedZoneBtn) {
     countSelectedZoneBtn.addEventListener("click", async () => {
       await countLoadedBuildingsInSelectedZone();
@@ -821,13 +1030,23 @@ map.on("load", async () => {
 
   ensureSupabaseResultOverlays();
   map.on("click", async (event) => {
+    if (
+      map.getLayer("firestations-circle") &&
+      map.queryRenderedFeatures(event.point, { layers: ["firestations-circle"] }).length > 0
+    ) {
+      return;
+    }
     await runSupabaseNearbySearch(event.lngLat.lng, event.lngLat.lat);
   });
 
   setSelectedZoneStatus("Selected zone: none");
   setStatus("Ready. Turn on a flood layer, click a zone, then run the zone count.");
   if (supabaseClient) {
-    setSupabaseStatus("Ready. Click the map to query buildings nearby.");
+    setSupabaseStatus(
+      hasFirestations
+        ? "Ready. Click the map or a fire station to query buildings nearby."
+        : "Ready. Click the map to query buildings nearby. No firestation GeoJSON file was found."
+    );
   } else {
     setSupabaseStatus(
       "Supabase not configured yet. Add SUPABASE_URL and SUPABASE_ANON_KEY in mpa.js."

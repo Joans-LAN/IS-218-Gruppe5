@@ -85,3 +85,19 @@ $$;
 
 ## Link til notebook
 [Åpne notebook (Oppgave 2)](./2a/is218a.ipynb)
+
+## Oppgave 3/4
+## Beskrivelse av utvidelsen
+Webkartet er utvidet med et nytt lag for brannstasjoner i Agder. Datasettet ble lastet ned som FileGDB og konvertert til GeoJSON (`firestationdata/brannstasjoner.geojson`) slik at det kan vises direkte i MapLibre.
+
+Brannstasjonene vises som egne punkter i kartet, og brukeren kan klikke på en brannstasjon for å få opp informasjon om stasjonen. Ved klikk brukes brannstasjonens koordinater som utgangspunkt for den eksisterende radiusanalysen mot Supabase/PostGIS. Applikasjonen finner da bygninger innenfor valgt radius rundt brannstasjonen og visualiserer treffene i kartet med radiussirkel og uthevede bygningspunkter.
+
+Utvidelsen kombinerer også radiusanalysen med flomsonekartet. For bygningene som ligger innenfor radiusen rundt valgt brannstasjon, sjekker applikasjonen hvor mange av disse som også ligger innenfor flomareal. Popupen for brannstasjonen viser derfor både:
+- informasjon om valgt brannstasjon
+- antall bygninger innenfor valgt radius
+- antall av disse bygningene som ligger i flomsone
+
+Dette gjør det mulig å vurdere hvilke brannstasjoner som har mange nærliggende bygninger i flomutsatte områder, og kan brukes som støtte i en enkel risiko- og beredskapsanalyse.
+
+## Demo av system
+![Demo gif](./assets/gif_oppgave3_4.gif)
